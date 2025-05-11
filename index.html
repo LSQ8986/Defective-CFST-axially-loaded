@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Concrete-Filled Steel Tube Column Capacity Calculator</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        body {
+            font-family: 'Times New Roman', Times, serif;
+            text-align: center;
+            font-size: 18px;
+            line-height: 1.5;
+            color: #333;
+        }
+        .container { 
+            max-width: 900px; 
+            margin: 20px auto; 
+            padding: 20px; 
+            background: #f8f9fa; 
+            border-radius: 10px; 
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+        }
+        .input-group { 
+            margin: 15px 0; 
+            padding: 15px 20px; 
+            background: white; 
+            border-radius: 8px; 
+            box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .input-group:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        .input-row { 
+            display: grid; 
+            grid-template-columns: repeat(auto-fill, minmax(200px,1fr)); 
+            gap: 15px; 
+        }
+        .param-label { 
+            margin-bottom: 5px; 
+            font-weight: 500;
+        }
+        .param-label i { font-style: italic; }
+        input { 
+            width: 100%; 
+            padding: 8px 12px; 
+            border: 1px solid #ddd; 
+            border-radius: 4px;
+            font-size: 14px;
+            transition: border-color 0.2s;
+        }
+        input:focus {
+            outline: none;
+            border-color: #3498db;
+            box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
+        }
+        .file-upload { 
+            border: 2px dashed #ccc; 
+            padding: 15px; 
+            text-align: center; 
+            margin: 15px 0;
+            border-radius: 6px;
+            transition: border-color 0.2s;
+        }
+        .file-upload:hover {
+            border-color: #3498db;
+        }
+        #resultTable { 
+            width: 100%; 
+            border-collapse: collapse; 
+            margin-top: 20px;
+            font-size: 14px;
+        }
+        #resultTable th, #resultTable td { 
+            border: 1px solid #e9ecef; 
+            padding: 10px; 
+            text-align: center; 
+        }
+        #resultTable th { 
+            background-color: #f1f3f5;
+            font-weight: 600;
+        }
+        .highlight { color: #e74c3c; font-weight: bold; }
+        button { 
+            padding: 10px 18px; 
+            margin: 5px; 
+            background: #3498db; 
+            color: white; 
+            border: none; 
+            border-radius: 4px; 
+            cursor: pointer;
+            font-size: 15px;
+            transition: background-color 0.2s, transform 0.1s;
+        }
+        button:hover { 
+            background: #2980b9;
+            transform: translateY(-1px);
+        }
+        button:active {
+            transform: translateY(0);
+        }
+        #exportBtn { display: none; background: #27ae60; }
+        .file-input-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px; /* 增加间距 */
+            margin-bottom: 15px;
+        }
+        input[type="file"] {
+            max-width: 300px;
+            font-size: 14px;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .result-message {
+            margin: 15px 0;
+            padding: 12px;
+            background-color: #f8f9fa;
+            border-radius: 6px;
+            border-left: 4px solid #3498db;
+        }
+        .diagram-container {
+            margin: 15px 0;
+            padding: 0;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+            overflow: hidden;
+        }
+        .diagram-container img {
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+        h1 {
+            font-size: 32px;
+            margin-bottom: 10px;
+            color: #2c3e50;
+        }
+        h3 {
+            font-size: 24px;
+            margin-top: 0;
+            margin-bottom: 15px;
+            color: #34495e;
+        }
+        .parameter-label {
+            font-size: 20px;
+            margin-bottom: 10px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        /* 修复输入框溢出问题 */
+        .single-input-wrapper {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>Axial load-capacity of CFST columns with local defect</h1>
+    <div class="container">
+        <div class="diagram-container">
+            <img src="diagram.jpg" alt="CFST Column Diagram">
+        </div>
+        <!-- Single Calculation -->
+        <div class="input-group">
+            <h3>Single Calculation</h3>
+            <p class="parameter-label">Parameters input [<i>f</i><sub>y</sub> (MPa), <i>f</i><sub>c</sub>(MPa), <i>D</i><sub>0</sub>(mm), <i>t</i><sub>0</sub>(mm), <i>L</i>(mm), <i>d</i>(mm), <i>α</i>(°), <i>l</i>(mm), <i>h</i>(mm)]</p>
+            <!-- 添加包装器修复溢出问题 -->
+            <div class="single-input-wrapper">
+                <input type="text" id="singleInput" placeholder="Enter parameters separated by comma or space">
+            </div>
+            <button onclick="singleCalculate()">Calculate</button>
+            <div id="singleResult" class="highlight" style="margin-top:15px;"></div>
+        </div>
+
+        <!-- Batch Calculation -->
+        <div class="input-group">
+            <h3>Batch Calculation</h3>
+            <p class="parameter-label">Parameters input [<i>f</i><sub>y</sub> (MPa), <i>f</i><sub>c</sub>(MPa), <i>D</i><sub>0</sub>(mm), <i>t</i><sub>0</sub>(mm), <i>L</i>(mm), <i>d</i>(mm), <i>α</i>(°), <i>l</i>(mm), <i>h</i>(mm)]</p>
+            <div class="file-upload">
+                <!-- 修改为flex布局使元素在同一行 -->
+                <div class="file-input-container">
+                    <input type="file" id="batchFile" accept=".csv,.xlsx,.txt">
+                    <span>Supported formats: CSV, Excel, TXT</span>
+                </div>
+            </div>
+            <button onclick="handleBatchCalculate()">Calculate</button>
+            <button id="exportBtn" onclick="exportExcel()">Download Results</button>
+            <div id="batchResultMessage" class="result-message" style="display: none;"></div>
+            <table id="resultTable" style="display:none;">
+                <thead>
+                    <tr>
+                        <th><i>f</i><sub>y</sub> /MPa</th><th><i>f</i><sub>c</sub> /MPa</th><th><i>D</i><sub>0</sub> /mm</th><th><i>t</i><sub>0</sub> /mm</th>
+                        <th><i>L</i> /mm</th><th><i>d</i> /mm</th><th><i>α</i> /°</th><th><i>l</i> /mm</th>
+                        <th><i>h</i> /mm</th><th><i>N</i><sub>ud</sub> /kN</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+    </div>
+
+<script>
+// 核心计算函数：根据输入参数计算CFST柱的承载力
+function calculate(params) {
+    const [fy, fc, D0, t0, L, d, alpha_deg, l, h] = params.map(Number);
+    
+    // 参数验证：检查h/L比例和缺陷深度是否在合理范围内
+    if (h/L < 0 || h/L > 0.5) return {error: "h/L out of range [0,0.5]"};
+    if (d > t0) return {error: "Defect depth exceeds wall thickness"};
+
+    // 几何参数计算
+    const Rc = D0/2 - t0;
+    const R = Rc + t0;
+    const td = t0 - d;
+    const beta = d / t0;
+    
+    // 缺陷参数计算
+    const alpha_rad = alpha_deg * Math.PI / 180;
+    const h_l = Math.min(l/4, 2*Rc);
+    const lb = 0.84 * Math.PI * Math.sqrt(R * t0);
+
+    // 临界角度计算
+    const theta = Math.min(alpha_rad/2 + lb/Rc, Math.PI);
+    const h_theta = Rc * (1 - Math.cos(theta)/2);
+
+    // 材料属性定义
+    const E_s = 2e5;
+    const E_c = 22000 * Math.pow((fc + 8)/10, 0.3);
+
+    // 截面属性计算
+    const Ac = Math.PI * Rc**2;
+    const As = t => Math.PI * ((Rc + t)**2 - Rc**2);
+    const Is = t => (Math.PI/4) * ((Rc + t)**4 - Rc**4);
+
+    // 承载力计算函数
+    const calcNu = t => {
+        const N0 = fy*As(t) + fc*Ac;
+        const Ncr = (Math.PI**2 * (E_s*Is(t) + 0.6*E_c*(Math.PI/4)*Rc**4)) / L**2;
+        const lambda = Math.sqrt(N0/Ncr);
+        const Rds = Math.min(1.2*Math.exp(-0.7*lambda), 1);
+        const xi = (fy*As(t))/(fc*Ac);
+        return Rds * (1.14 + 1.02*xi) * fc * (As(t)+Ac);
+    };
+
+    // 计算完好和缺陷状态下的承载力
+    const nu_t0 = calcNu(t0);
+    const nu_td = calcNu(td);
+
+    // 缺陷区域面积计算
+    let Acd;
+    if (h_l <= h_theta) {
+        const lb0 = (Math.PI - alpha_rad/2) * Rc;
+        const lbx = Math.min(lb, lb0);
+        const x_R_raw = (lb/h_l) * (h_l - Rc);
+        const x_R = Math.max(x_R_raw, 0);
+        
+        const term1 = h_l * lbx * (1 - h_l/(3*Rc));
+        const term2 = alpha_rad * h_l * (Rc - h_l/2);
+        const term3 = (h_l**2 / lb**2) * (Math.PI - (5*x_R)/(6*Rc)) * x_R**2;
+        Acd = term1 + term2 + term3;
+    } else {
+        const theta_term = theta - (Math.sin(theta)*Math.cos(theta))/3;
+        Acd = theta_term * Rc**2;
+    }
+
+    // 承载力折减系数计算
+    const phi_p = 1 + 1.5 * (beta * l / L) * (0.5 - h/L);
+    const Nud = phi_p * ((Acd/Ac)*nu_td + (1 - Acd/Ac)*nu_t0);
+    
+    return {
+        value: Nud/1000, // 转换为kN单位
+        error: null
+    };
+}
+
+// 单参数计算处理函数
+function singleCalculate() {
+    const input = document.getElementById('singleInput').value.trim();
+    // 检查输入是否为空
+    if (!input) {
+        document.getElementById('singleResult').innerHTML = 
+            '<p style="color:red">Error: Please fill all parameters</p>';
+        return;
+    }
+    // 分割输入参数
+    const params = input.split(/[,\s]+/);
+    // 检查参数数量是否正确
+    if (params.length !== 9) {
+        document.getElementById('singleResult').innerHTML = 
+            '<p style="color:red">Error: Please enter exactly 9 parameters</p>';
+        return;
+    }
+
+    // 执行计算并显示结果
+    const result = calculate(params);
+    document.getElementById('singleResult').innerHTML = result.error ? 
+        `<p style="color:red">${result.error}</p>` :
+        `<p><i>N</i><sub>ud</sub> = <span>${result.value.toFixed(2)}</span> kN</p>`;
+}
+
+// 批量计算处理函数
+let batchResults = [];
+async function handleBatchCalculate() {
+    const file = document.getElementById('batchFile').files[0];
+    // 检查是否选择了文件
+    if (!file) return alert("Please upload a file first");
+    
+    // 读取文件内容
+    const rawData = await readFile(file);
+    // 处理每一行数据并计算结果
+    batchResults = rawData.map(row => {
+        const params = row.slice(0,9).map(Number);
+        const result = calculate(params);
+        return [...params, result.error ? "Error" : result.value];
+    });
+
+    // 根据结果数量决定显示方式
+    const resultMessage = document.getElementById('batchResultMessage');
+    const resultTable = document.getElementById('resultTable');
+    
+    if (batchResults.length <= 200) {
+        // 结果数量不超过200时显示表格
+        const tbody = document.querySelector('#resultTable tbody');
+        tbody.innerHTML = batchResults.map(row => `
+            <tr>
+                <td>${row[0].toFixed(2)}</td><td>${row[1].toFixed(2)}</td><td>${row[2].toFixed(2)}</td><td>${row[3].toFixed(2)}</td>
+                <td>${row[4].toFixed(2)}</td><td>${row[5].toFixed(2)}</td><td>${row[6].toFixed(2)}</td><td>${row[7].toFixed(2)}</td>
+                <td>${row[8].toFixed(2)}</td><td>${row[9] === "Error" ? "Error" : row[9].toFixed(2)}</td>
+            </tr>
+        `).join('');
+        
+        resultTable.style.display = 'table';
+        resultMessage.style.display = 'none';
+    } else {
+        // 结果数量超过200时只显示消息
+        resultTable.style.display = 'none';
+        resultMessage.style.display = 'block';
+        resultMessage.innerHTML = `计算完成，共处理 ${batchResults.length} 个试件。结果数量超过200，已隐藏表格显示，请直接下载结果文件。`;
+    }
+    
+    // 显示导出按钮
+    document.getElementById('exportBtn').style.display = 'inline-block';
+}
+
+// 文件读取函数
+async function readFile(file) {
+    return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            if (file.name.endsWith('.xlsx')) {
+                // 处理Excel文件
+                const workbook = XLSX.read(e.target.result, {type: 'array'});
+                resolve(XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], {header:1}));
+            } else {
+                // 处理文本文件
+                resolve(e.target.result.split('\n').map(line => line.split(/[,\t]/)));
+            }
+        };
+        // 根据文件类型选择读取方式
+        if (file.name.endsWith('.xlsx')) reader.readAsArrayBuffer(file);
+        else reader.readAsText(file);
+    });
+}
+
+// 导出Excel文件函数
+function exportExcel() {
+    const ws = XLSX.utils.json_to_sheet(batchResults.map(row => ({
+        "fy /MPa": row[0], "fc /MPa": row[1], "D0 /mm": row[2],
+        "t0 /mm": row[3], "L /mm": row[4], "d /mm": row[5],
+        "α /°": row[6], "l /mm": row[7], "h /mm": row[8],
+        "Nud /kN": row[9]
+    })));
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Results");
+    XLSX.writeFile(wb, "Batch_Results.xlsx");
+}
+</script>
+</body>
+</html>
+    
