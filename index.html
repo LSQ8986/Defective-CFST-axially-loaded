@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <title>Concrete-Filled Steel Tube Column Capacity Calculator</title>
+    <!-- Import Excel processing library -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
         body {
@@ -105,7 +106,7 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            gap: 15px; /* 增加间距 */
+            gap: 15px;
             margin-bottom: 15px;
         }
         input[type="file"] {
@@ -153,7 +154,7 @@
             overflow: hidden;
             text-overflow: ellipsis;
         }
-        /* 修复输入框溢出问题 */
+        /* Fix input overflow issues */
         .single-input-wrapper {
             max-width: 800px;
             margin: 0 auto;
@@ -164,13 +165,13 @@
     <h1>Axial load-capacity of CFST columns with local defect</h1>
     <div class="container">
         <div class="diagram-container">
-            <img src="Diagram.jpg" alt="CFST Column Diagram">
+            <img src="Diagram.jpg" alt="CFST Column Diagram showing cross-section with local defect">
         </div>
-        <!-- Single Calculation -->
+        
+        <!-- Single Calculation Section -->
         <div class="input-group">
             <h3>Single Calculation</h3>
             <p class="parameter-label">Parameters input [<i>f</i><sub>y</sub> (MPa), <i>f</i><sub>c</sub>(MPa), <i>D</i><sub>0</sub>(mm), <i>t</i><sub>0</sub>(mm), <i>L</i>(mm), <i>d</i>(mm), <i>α</i>(°), <i>l</i>(mm), <i>h</i>(mm)]</p>
-            <!-- 添加包装器修复溢出问题 -->
             <div class="single-input-wrapper">
                 <input type="text" id="singleInput" placeholder="Enter parameters separated by comma or space">
             </div>
@@ -178,12 +179,11 @@
             <div id="singleResult" class="highlight" style="margin-top:15px;"></div>
         </div>
 
-        <!-- Batch Calculation -->
+        <!-- Batch Calculation Section -->
         <div class="input-group">
             <h3>Batch Calculation</h3>
             <p class="parameter-label">Parameters input [<i>f</i><sub>y</sub> (MPa), <i>f</i><sub>c</sub>(MPa), <i>D</i><sub>0</sub>(mm), <i>t</i><sub>0</sub>(mm), <i>L</i>(mm), <i>d</i>(mm), <i>α</i>(°), <i>l</i>(mm), <i>h</i>(mm)]</p>
             <div class="file-upload">
-                <!-- 修改为flex布局使元素在同一行 -->
                 <div class="file-input-container">
                     <input type="file" id="batchFile" accept=".csv,.xlsx,.txt">
                     <span>Supported formats: CSV, Excel, TXT</span>
@@ -206,53 +206,67 @@
     </div>
 
 <script>
-// 核心计算函数：根据输入参数计算CFST柱的承载力
+/**
+ * Core calculation function: Computes CFST column capacity based on input parameters
+ * @param {Array} params - Array containing 9 parameters:
+ *   [fy, fc, D0, t0, L, d, alpha_deg, l, h]
+ * @returns {Object} Result object with either calculated value or error message
+ */
 function calculate(params) {
+    // Convert all parameters to numbers
     const [fy, fc, D0, t0, L, d, alpha_deg, l, h] = params.map(Number);
     
-    // 参数验证：检查h/L比例和缺陷深度是否在合理范围内
-    if (h/L < 0 || h/L > 0.5) return {error: "h/L out of range [0,0.5]"};
+    // Parameter validation
+    if (h/L < 0 || h/L > 0.5) return {error: "h/L ratio out of valid range [0, 0.5]"};
     if (d > t0) return {error: "Defect depth exceeds wall thickness"};
+    if (isNaN(fy) || isNaN(fc) || isNaN(D0) || isNaN(t0) || isNaN(L) || 
+        isNaN(d) || isNaN(alpha_deg) || isNaN(l) || isNaN(h)) {
+        return {error: "Invalid parameter format - please use numbers only"};
+    }
 
-    // 几何参数计算
-    const Rc = D0/2 - t0;
-    const R = Rc + t0;
-    const td = t0 - d;
-    const beta = d / t0;
+    // Geometric parameter calculations
+    const Rc = D0/2 - t0; // Concrete core radius
+    const R = Rc + t0;    // Outer radius
+    const td = t0 - d;    // Reduced thickness at defect
+    const beta = d / t0;  // Thickness reduction ratio
     
-    // 缺陷参数计算
-    const alpha_rad = alpha_deg * Math.PI / 180;
+    // Defect parameter calculations
+    const alpha_rad = alpha_deg * Math.PI / 180; // Convert angle to radians
     const h_l = Math.min(l/4, 2*Rc);
     const lb = 0.84 * Math.PI * Math.sqrt(R * t0);
 
-    // 临界角度计算
+    // Critical angle calculation
     const theta = Math.min(alpha_rad/2 + lb/Rc, Math.PI);
     const h_theta = Rc * (1 - Math.cos(theta)/2);
 
-    // 材料属性定义
-    const E_s = 2e5;
-    const E_c = 22000 * Math.pow((fc + 8)/10, 0.3);
+    // Material property definitions
+    const E_s = 2e5; // Steel modulus of elasticity (MPa)
+    const E_c = 22000 * Math.pow((fc + 8)/10, 0.3); // Concrete modulus (MPa)
 
-    // 截面属性计算
-    const Ac = Math.PI * Rc**2;
+    // Cross-sectional property calculations
+    const Ac = Math.PI * Rc**2; // Concrete cross-sectional area
+    
+    // Steel area calculation function
     const As = t => Math.PI * ((Rc + t)**2 - Rc**2);
+    
+    // Moment of inertia calculation function
     const Is = t => (Math.PI/4) * ((Rc + t)**4 - Rc**4);
 
-    // 承载力计算函数
+    // Capacity calculation function
     const calcNu = t => {
-        const N0 = fy*As(t) + fc*Ac;
-        const Ncr = (Math.PI**2 * (E_s*Is(t) + 0.6*E_c*(Math.PI/4)*Rc**4)) / L**2;
-        const lambda = Math.sqrt(N0/Ncr);
-        const Rds = Math.min(1.2*Math.exp(-0.7*lambda), 1);
-        const xi = (fy*As(t))/(fc*Ac);
-        return Rds * (1.14 + 1.02*xi) * fc * (As(t)+Ac);
+        const N0 = fy*As(t) + fc*Ac; // Nominal axial strength
+        const Ncr = (Math.PI**2 * (E_s*Is(t) + 0.6*E_c*(Math.PI/4)*Rc**4)) / L**2; // Critical buckling load
+        const lambda = Math.sqrt(N0/Ncr); // Slenderness ratio
+        const Rds = Math.min(1.2*Math.exp(-0.7*lambda), 1); // Buckling reduction factor
+        const xi = (fy*As(t))/(fc*Ac); // Steel ratio parameter
+        return Rds * (1.14 + 1.02*xi) * fc * (As(t)+Ac); // Final capacity calculation
     };
 
-    // 计算完好和缺陷状态下的承载力
-    const nu_t0 = calcNu(t0);
-    const nu_td = calcNu(td);
+    // Calculate capacities for intact and defective states
+    const nu_t0 = calcNu(t0); // Intact section capacity
+    const nu_td = calcNu(td); // Defective section capacity
 
-    // 缺陷区域面积计算
+    // Defective area calculation
     let Acd;
     if (h_l <= h_theta) {
         const lb0 = (Math.PI - alpha_rad/2) * Rc;
@@ -269,118 +283,181 @@ function calculate(params) {
         Acd = theta_term * Rc**2;
     }
 
-    // 承载力折减系数计算
+    // Capacity reduction factor calculation
     const phi_p = 1 + 1.5 * (beta * l / L) * (0.5 - h/L);
     const Nud = phi_p * ((Acd/Ac)*nu_td + (1 - Acd/Ac)*nu_t0);
     
     return {
-        value: Nud/1000, // 转换为kN单位
+        value: Nud/1000, // Convert to kN
         error: null
     };
 }
 
-// 单参数计算处理函数
+/**
+ * Handles single calculation from input field
+ */
 function singleCalculate() {
     const input = document.getElementById('singleInput').value.trim();
-    // 检查输入是否为空
+    
+    // Check for empty input
     if (!input) {
         document.getElementById('singleResult').innerHTML = 
-            '<p style="color:red">Error: Please fill all parameters</p>';
+            '<p style="color:red">Error: Please enter parameters</p>';
         return;
     }
-    // 分割输入参数
+    
+    // Split input parameters using any combination of commas or whitespace
     const params = input.split(/[,\s]+/);
-    // 检查参数数量是否正确
+    
+    // Validate parameter count
     if (params.length !== 9) {
         document.getElementById('singleResult').innerHTML = 
-            '<p style="color:red">Error: Please enter exactly 9 parameters</p>';
+            `<p style="color:red">Error: Please enter exactly 9 parameters (received ${params.length})</p>`;
         return;
     }
 
-    // 执行计算并显示结果
+    // Perform calculation and display result
     const result = calculate(params);
     document.getElementById('singleResult').innerHTML = result.error ? 
         `<p style="color:red">${result.error}</p>` :
         `<p><i>N</i><sub>ud</sub> = <span>${result.value.toFixed(2)}</span> kN</p>`;
 }
 
-// 批量计算处理函数
+// Store batch calculation results
 let batchResults = [];
+
+/**
+ * Handles batch calculation from uploaded file
+ */
 async function handleBatchCalculate() {
     const file = document.getElementById('batchFile').files[0];
-    // 检查是否选择了文件
+    
+    // Check if file was selected
     if (!file) return alert("Please upload a file first");
     
-    // 读取文件内容
+    // Read and process file data
     const rawData = await readFile(file);
-    // 处理每一行数据并计算结果
+    
+    // Process each row and calculate results
     batchResults = rawData.map(row => {
-        const params = row.slice(0,9).map(Number);
+        // Extract first 9 parameters and convert to numbers
+        const params = row.slice(0, 9).map(cell => cell.trim()).map(Number);
         const result = calculate(params);
         return [...params, result.error ? "Error" : result.value];
     });
 
-    // 根据结果数量决定显示方式
+    // Get UI elements for results display
     const resultMessage = document.getElementById('batchResultMessage');
     const resultTable = document.getElementById('resultTable');
     
+    // Display appropriate results based on data volume
     if (batchResults.length <= 200) {
-        // 结果数量不超过200时显示表格
+        // Show table for smaller datasets
         const tbody = document.querySelector('#resultTable tbody');
         tbody.innerHTML = batchResults.map(row => `
             <tr>
-                <td>${row[0].toFixed(2)}</td><td>${row[1].toFixed(2)}</td><td>${row[2].toFixed(2)}</td><td>${row[3].toFixed(2)}</td>
-                <td>${row[4].toFixed(2)}</td><td>${row[5].toFixed(2)}</td><td>${row[6].toFixed(2)}</td><td>${row[7].toFixed(2)}</td>
-                <td>${row[8].toFixed(2)}</td><td>${row[9] === "Error" ? "Error" : row[9].toFixed(2)}</td>
+                <td>${row[0]?.toFixed(2) || ''}</td>
+                <td>${row[1]?.toFixed(2) || ''}</td>
+                <td>${row[2]?.toFixed(2) || ''}</td>
+                <td>${row[3]?.toFixed(2) || ''}</td>
+                <td>${row[4]?.toFixed(2) || ''}</td>
+                <td>${row[5]?.toFixed(2) || ''}</td>
+                <td>${row[6]?.toFixed(2) || ''}</td>
+                <td>${row[7]?.toFixed(2) || ''}</td>
+                <td>${row[8]?.toFixed(2) || ''}</td>
+                <td>${row[9] === "Error" ? "Error" : row[9]?.toFixed(2) || ''}</td>
             </tr>
         `).join('');
         
         resultTable.style.display = 'table';
         resultMessage.style.display = 'none';
     } else {
-        // 结果数量超过200时只显示消息
+        // Show message only for large datasets
         resultTable.style.display = 'none';
         resultMessage.style.display = 'block';
-        resultMessage.innerHTML = `计算完成，共处理 ${batchResults.length} 个试件。结果数量超过200，已隐藏表格显示，请直接下载结果文件。`;
+        resultMessage.innerHTML = `Calculation complete. Processed ${batchResults.length} specimens. 
+            Results table hidden due to size (over 200 entries). Please download the results file.`;
     }
     
-    // 显示导出按钮
+    // Show export button after calculation
     document.getElementById('exportBtn').style.display = 'inline-block';
 }
 
-// 文件读取函数
+/**
+ * Reads and processes uploaded files, filtering out empty rows and headers
+ * @param {File} file - Uploaded file object
+ * @returns {Promise<Array>} Processed data array
+ */
 async function readFile(file) {
     return new Promise((resolve) => {
         const reader = new FileReader();
+        
         reader.onload = (e) => {
+            let data = [];
+            
+            // Read Excel files
             if (file.name.endsWith('.xlsx')) {
-                // 处理Excel文件
-                const workbook = XLSX.read(e.target.result, {type: 'array'});
-                resolve(XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], {header:1}));
-            } else {
-                // 处理文本文件
-                resolve(e.target.result.split('\n').map(line => line.split(/[,\t]/)));
+                const workbook = XLSX.read(e.target.result, { type: 'array' });
+                data = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], { header: 1 });
+                // Convert all cells to strings for Excel data
+                data = data.map(row => row.map(cell => String(cell).trim()));
+            } 
+            // Read text-based files (CSV, TXT)
+            else {
+                data = e.target.result.split('\n')
+                   .map(line => line.split(/[,\t]/)) 
+                   .map(row => row.map(cell => 
+                       typeof cell === 'string' ? cell.trim() : String(cell).trim() // Ensure conversion to string
+                   )); 
             }
+
+            // Filter out empty rows and header rows
+            const filteredData = data.filter(row => {
+                // Skip completely empty rows
+                if (row.every(cell => cell === '')) return false;
+                
+                // Get first 9 cells to check for valid data
+                const first9Cells = row.slice(0, 9);
+                
+                // Skip rows that contain non-numeric values in first 9 positions
+                return first9Cells.some(cell => !isNaN(cell) && cell !== '');
+            });
+
+            resolve(filteredData);
         };
-        // 根据文件类型选择读取方式
-        if (file.name.endsWith('.xlsx')) reader.readAsArrayBuffer(file);
-        else reader.readAsText(file);
+
+        // Read file in appropriate format
+        if (file.name.endsWith('.xlsx')) {
+            reader.readAsArrayBuffer(file);
+        } else {
+            reader.readAsText(file);
+        }
     });
 }
 
-// 导出Excel文件函数
+/**
+ * Exports batch results to Excel file
+ */
 function exportExcel() {
+    // Convert results to JSON format for Excel export
     const ws = XLSX.utils.json_to_sheet(batchResults.map(row => ({
-        "fy /MPa": row[0], "fc /MPa": row[1], "D0 /mm": row[2],
-        "t0 /mm": row[3], "L /mm": row[4], "d /mm": row[5],
-        "α /°": row[6], "l /mm": row[7], "h /mm": row[8],
+        "fy /MPa": row[0], 
+        "fc /MPa": row[1], 
+        "D0 /mm": row[2],
+        "t0 /mm": row[3], 
+        "L /mm": row[4], 
+        "d /mm": row[5],
+        "α /°": row[6], 
+        "l /mm": row[7], 
+        "h /mm": row[8],
         "Nud /kN": row[9]
     })));
+    
+    // Create workbook and export
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Results");
-    XLSX.writeFile(wb, "Batch_Results.xlsx");
+    XLSX.utils.book_append_sheet(wb, ws, "CFST_Results");
+    XLSX.writeFile(wb, "CFST_Batch_Results.xlsx");
 }
 </script>
 </body>
 </html>
-    
